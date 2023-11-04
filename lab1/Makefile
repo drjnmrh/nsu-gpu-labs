@@ -1,2 +1,2 @@
 main.o: main.cu
-    nvcc main.cu
+	nvcc -std=c++17 main.cu

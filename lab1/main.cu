@@ -8,6 +8,11 @@
 #include <thread>
 
 
+#ifndef M_PI
+#   define M_PI 3.14159265359
+#endif
+
+
 #define LAB_NUMBER 1
 
 #define CALL_CUDA(Func, ...) \
@@ -250,17 +255,26 @@ int main(void) {
 
     CALL_COMPUTE_SIN_CUDA(GridSz, BlockSz, sin)(N, gpuArray);
 
+    CALL_CUDA(cudaPeekAtLastError);
+    CALL_CUDA(cudaDeviceSynchronize);
+
     CALL_CUDA(cudaMemcpy, cpuArray.get(), gpuArray, ArraySizeInBytes, cudaMemcpyDeviceToHost);
     double meanError = calculate_error(N, arrCpuSin.get(), cpuArray.get());
     print_error("sin", meanError);
 
     CALL_COMPUTE_SIN_CUDA(GridSz, BlockSz, sinf)(N, gpuArray);
 
+    CALL_CUDA(cudaPeekAtLastError);
+    CALL_CUDA(cudaDeviceSynchronize);
+
     CALL_CUDA(cudaMemcpy, cpuArray.get(), gpuArray, ArraySizeInBytes, cudaMemcpyDeviceToHost);
     meanError = calculate_error(N, arrCpuSin.get(), cpuArray.get());
     print_error("sinf", meanError);
 
     CALL_COMPUTE_SIN_CUDA(GridSz, BlockSz, __sinf)(N, gpuArray);
+
+    CALL_CUDA(cudaPeekAtLastError);
+    CALL_CUDA(cudaDeviceSynchronize);
 
     CALL_CUDA(cudaMemcpy, cpuArray.get(), gpuArray, ArraySizeInBytes, cudaMemcpyDeviceToHost);
     meanError = calculate_error(N, arrCpuSin.get(), cpuArray.get());
