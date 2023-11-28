@@ -1,90 +1,14 @@
 #include <math.h>
 
 #include <algorithm>
-#include <atomic>
-#include <chrono>
 #include <iostream>
-#include <memory>
-#include <thread>
+
+#include "global.hpp"
 
 
 #ifndef M_PI
 #   define M_PI 3.14159265359
 #endif
-
-
-#define LAB_NUMBER 1
-
-#define CALL_CUDA(Func, ...) \
-{ \
-    cudaError_t errorCode = Func(__VA_ARGS__); \
-    if (errorCode != cudaSuccess) { \
-        std::cerr << "FAILED: " << cudaGetErrorString(errorCode) << std::endl; \
-        return 1; \
-    } \
-}
-
-
-/**
- * @brief Worker thread structured data.
- *
- * I use multiple threads to precalculate sin function. In order to do that
- * several threads are created, each one of them calculates 'quant' of sin
- * values.
- */
-struct WorkerData {
-    std::unique_ptr<std::thread> threadPtr;
-
-    unsigned int ixThread;
-    unsigned int szQuant;
-
-    std::atomic<bool> isFinished alignas(64);
-};
-
-
-/**
- * @brief An utility class to measure elapsed time.
- *
- */
-class Stopwatch {
-public:
-    using clock_t = std::chrono::high_resolution_clock;
-
-    void start() { _tpStart = clock_t::now(); }
-
-    float measure() const {
-        auto tpNow = clock_t::now();
-        std::chrono::duration<float> dur = (tpNow - _tpStart);
-        return dur.count();
-    }
-
-private:
-    clock_t::time_point _tpStart;
-};
-
-
-/**
- * @brief An utility structure used to manage allocated CUDA arrays.
- */
-template <typename T>
-struct cuda_array_raii_t {
-    T* arr;
-
-    cuda_array_raii_t() noexcept : arr(nullptr) {}
-    cuda_array_raii_t(T* a) noexcept : arr(a) {}
-   ~cuda_array_raii_t() noexcept {
-        if (arr != nullptr) {
-            cudaFree(arr);
-        }
-    }
-
-    void release(bool needFree = false) noexcept {
-        if (needFree && arr != nullptr) {
-            cudaFree(arr);
-        }
-        arr = nullptr;
-    }
-};
 
 
 /**
@@ -166,9 +90,9 @@ static double calculate_error(unsigned int n, float* want, float* got) {
 }
 
 
-static void print_error(const char* const funcname, double errorValue) {
+static void print_error(const char* const funcname, double errorValue, float dt) {
 
-    std::cout << " - mean error for '" << funcname << "' function: " << std::scientific << errorValue << std::endl;
+    std::cout << " - mean error for '" << funcname << "' function: " << std::scientific << errorValue << " (" << std::fixed << dt*1000 << "ms)" << std::endl;
 }
 
 
@@ -215,7 +139,7 @@ int main(void) {
                     wd[it].threadPtr->detach();
             }
             arrCpuSin.release();
-            return 3;
+            return CODE(TimeOut);
         }
     }
 
@@ -229,19 +153,9 @@ int main(void) {
     // Calculate sine values using different CUDA sine functions and calculate
     // error (precalculated CPU values are used as a ground truth).
 
-    int nbDevices;
-    CALL_CUDA(cudaGetDeviceCount, &nbDevices);
-
-    std::cout << "Number of CUDA devices: " << nbDevices << std::endl;
-
-    if (0 == nbDevices) {
-        std::cout << "No CUDA devices available!" << std::endl;
-        return 2;
+    if (!setup_cuda()) {
+        return CODE(CUDA_Setup);
     }
-
-    CALL_CUDA(cudaSetDevice, 0);
-
-    std::cout << "Successfully set device 0" << std::endl;
 
     float* gpuArray;
 
@@ -253,32 +167,40 @@ int main(void) {
     dim3 BlockSz(512);
     dim3 GridSz(ceil(N/float(BlockSz.x)));
 
+    float dt;
+
+    stopwatch.start();
     CALL_COMPUTE_SIN_CUDA(GridSz, BlockSz, sin)(N, gpuArray);
 
     CALL_CUDA(cudaPeekAtLastError);
     CALL_CUDA(cudaDeviceSynchronize);
+    dt = stopwatch.measure();
 
     CALL_CUDA(cudaMemcpy, cpuArray.get(), gpuArray, ArraySizeInBytes, cudaMemcpyDeviceToHost);
     double meanError = calculate_error(N, arrCpuSin.get(), cpuArray.get());
-    print_error("sin", meanError);
+    print_error("sin", meanError, dt);
 
+    stopwatch.start();
     CALL_COMPUTE_SIN_CUDA(GridSz, BlockSz, sinf)(N, gpuArray);
 
     CALL_CUDA(cudaPeekAtLastError);
     CALL_CUDA(cudaDeviceSynchronize);
+    dt = stopwatch.measure();
 
     CALL_CUDA(cudaMemcpy, cpuArray.get(), gpuArray, ArraySizeInBytes, cudaMemcpyDeviceToHost);
     meanError = calculate_error(N, arrCpuSin.get(), cpuArray.get());
-    print_error("sinf", meanError);
+    print_error("sinf", meanError, dt);
 
+    stopwatch.start();
     CALL_COMPUTE_SIN_CUDA(GridSz, BlockSz, __sinf)(N, gpuArray);
 
     CALL_CUDA(cudaPeekAtLastError);
     CALL_CUDA(cudaDeviceSynchronize);
+    dt = stopwatch.measure();
 
     CALL_CUDA(cudaMemcpy, cpuArray.get(), gpuArray, ArraySizeInBytes, cudaMemcpyDeviceToHost);
     meanError = calculate_error(N, arrCpuSin.get(), cpuArray.get());
-    print_error("__sinf", meanError);
+    print_error("__sinf", meanError, dt);
 
-    return 0;
+    return CODE(Ok);
 }

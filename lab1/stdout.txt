@@ -1,7 +1,7 @@
 *********** Lab 1 ***********
-Finished calculating in 1290.1ms
+Finished calculating in 261.106ms
 Number of CUDA devices: 1
 Successfully set device 0
- - mean error for 'sin' function: 0.000000e+00
- - mean error for 'sinf' function: 4.362692e-08
- - mean error for '__sinf' function: 1.276274e-07
+ - mean error for 'sin' function: 0.000000e+00 (20.001860ms)
+ - mean error for 'sinf' function: 4.362692e-08 (7.744701ms)
+ - mean error for '__sinf' function: 1.276274e-07 (7.688900ms)
