@@ -33,6 +33,7 @@ enum class RCode {
 using byte = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
+using i32 = int32_t;
 
 
 template < typename T, size_t N >

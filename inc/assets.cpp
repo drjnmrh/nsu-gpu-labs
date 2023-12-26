@@ -207,7 +207,6 @@ namespace {
 
         assert(_nbBits <= 32);
 
-        u32 maxR = (1 << _nbBitsR) - 1;
         u32 maxG = (1 << _nbBitsG) - 1;
         u32 maxB = (1 << _nbBitsB) - 1;
         u32 maxA = (1 << _nbBitsA) - 1;
@@ -231,6 +230,22 @@ namespace {
     }
 
 
+}
+
+
+/*static*/
+u32 Png::get_channels_number(ColorFormat format) noexcept {
+
+    switch(format) {
+        case ColorFormat::Undefined: return 0;
+        case ColorFormat::R8G8B8A8 : return 4;
+        case ColorFormat::R8G8B8   : return 3;
+        case ColorFormat::R8G8B8X8 : return 3;
+        case ColorFormat::R4G4B4A4 : return 4;
+        case ColorFormat::R5G6B5   : return 3;
+        case ColorFormat::A8       : return 1;
+        default: return 0;
+    }
 }
 
 
@@ -526,6 +541,10 @@ RCode Png::Save(AssetData& ad) const noexcept {
 
 
 RCode Png::Convert(ColorFormat desired) noexcept {
+
+    if (desired == _format) {
+        return RCode::Ok;
+    }
 
     Png tmp;
     RCode rcode = convert(tmp, *this, desired);

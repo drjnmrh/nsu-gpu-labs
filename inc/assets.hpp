@@ -49,6 +49,8 @@ public:
     ,   A8
     };
 
+    static u32 get_channels_number(ColorFormat format) noexcept;
+
     Png() noexcept;
    ~Png() noexcept {}
 

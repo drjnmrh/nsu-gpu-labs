@@ -54,5 +54,7 @@ int main(void) {
         return static_cast<int>(rc);
     }
 
+    delete[] ad.data;
+
     return CODE(Ok);
 }
