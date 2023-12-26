@@ -23,6 +23,7 @@ enum class RCode {
 ,   MemError     = 4
 ,   InvalidInput = 5
 ,   LogicError   = 6
+,   IOError      = 7
 };
 
 #define CODE(RCodeValue) static_cast<int>(RCode::RCodeValue)
@@ -31,6 +32,12 @@ enum class RCode {
 using byte = uint8_t;
 using u16 = uint16_t;
 using u32 = uint32_t;
+
+
+template < typename T, size_t N >
+static constexpr size_t lengthof(T (&a)[N]) {
+    return N;
+}
 
 
 /**

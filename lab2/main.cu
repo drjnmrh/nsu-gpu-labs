@@ -16,7 +16,7 @@
 #include "assets.cpp"
 
 
-int main(void) {
+int main(int argc, char** argv) {
 
     std::cout << "*********** Lab " << LAB_NUMBER << " ***********" << std::endl;
 

@@ -3,6 +3,8 @@
 
 #include <inttypes.h>
 
+#include <string>
+
 #include <png.h>
 
 #include "global.hpp"
@@ -21,6 +23,9 @@ public:
 
     RCode Load(AssetData& output, const char* assetName) noexcept;
     RCode Save(const AssetData& input, const char* assetName) noexcept;
+
+private:
+    std::string _folder;
 };
 
 

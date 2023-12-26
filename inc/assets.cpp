@@ -4,6 +4,13 @@
 #include <functional>
 #include <vector>
 
+#if defined(_WIN32) || defined(_WIN64) || defined(WIN32) || defined(WIN64) || defined(__CYGWIN__)
+#   include <direct.h>
+#   define getcwd _getcwd
+#else
+#   include <unistd.h>
+#endif
+
 
 namespace {
 
@@ -617,4 +624,45 @@ RCode Png::convert(Png& dest, const Png& source, ColorFormat target) noexcept {
     }
 
     return RCode::Ok;
+}
+
+
+RCode AssetsManager::Setup() noexcept {
+
+    char pathbuf[512];
+    char* res = getcwd(pathbuf, 512);
+    if (!res) {
+        return CODE(IOError);
+    }
+
+    static char sAssetsPath[] = "/../assets/";
+
+    size_t l = std::strlen(pathbuf);
+    if (l + lengthof(sAssetsPath) >= lengthof(pathbuf)) {
+        return CODE(LogicError);
+    }
+
+    std::strcat(pathbuf, sAssetsPath);
+
+    _folder = std::string(pathbuf);
+
+    return CODE(Ok);
+}
+
+
+RCode AssetsManager::Load(AssetData& output, const char* assetName) noexcept {
+
+    if (_folder.size() == 0) {
+        return CODE(LogicError);
+    }
+
+    char pathbuf[512];
+    if (std::strlen(assetName) + _folder.size() >= lengthof(pathbuf)) {
+        return CODE(InvalidInput);
+    }
+
+    std::strcpy(pathbuf, _folder.c_str());
+    std::strcat(pathbuf, assetName);
+
+
 }
