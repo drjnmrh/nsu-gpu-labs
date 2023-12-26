@@ -24,6 +24,7 @@ enum class RCode {
 ,   InvalidInput = 5
 ,   LogicError   = 6
 ,   IOError      = 7
+,   Unknown
 };
 
 #define CODE(RCodeValue) static_cast<int>(RCode::RCodeValue)

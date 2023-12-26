@@ -1,6 +1,7 @@
 #include "assets.hpp"
 
 #include <cstring>
+#include <fstream>
 #include <functional>
 #include <vector>
 
@@ -477,7 +478,7 @@ RCode Png::Save(AssetData& ad) const noexcept {
 
     Png copy = Clone();
 
-    int colortype = 0;
+    int colortype = -1;
     switch(_format) {
         case ColorFormat::R8G8B8A8: colortype = PNG_COLOR_TYPE_RGB_ALPHA; break;
         case ColorFormat::R8G8B8  :
@@ -491,7 +492,7 @@ RCode Png::Save(AssetData& ad) const noexcept {
         default: break;
     }
 
-    if (colortype == 0) {
+    if (colortype < 0) {
         return RCode::LogicError;
     }
 
@@ -587,10 +588,50 @@ RCode Png::convert_A8_to_RGBA(Png& dest, const Png& source) noexcept {
 
 
 /*static*/
+RCode Png::convert_RGB_to_A8(Png& dest, const Png& source) noexcept {
+
+    assert(source._format == ColorFormat::R8G8B8);
+
+    ColorObject srcColor = ColorObject::FromFormat(ColorFormat::R8G8B8);
+    assert(srcColor.isValid());
+
+    ColorObject dstColor = ColorObject::FromFormat(ColorFormat::A8);
+    assert(srcColor.isValid());
+
+    dest._szRow = source._width * dstColor.size();
+    dest._width = source._width;
+    dest._height = source._height;
+    dest._format = ColorFormat::A8;
+    dest._szData = source._width * source._height * dstColor.size();
+    dest._data = std::make_unique<byte[]>(dest._szData);
+    if (!dest._data) {
+        return RCode::MemError;
+    }
+
+    for (uint32_t y = 0, w = 0; y < source._height * source._szRow; y += source._szRow, w += dest._szRow) {
+        for (uint32_t x = 0, v = 0; x < source._width * srcColor.size(); x += srcColor.size(), v += dstColor.size()) {
+            assert(y + x < source._szData);
+            assert(w + v < dest._szData);
+            srcColor.load(&(source._data[y + x]));
+            float clr = 0.299 * srcColor.R() + 0.587 * srcColor.G() + 0.114 * srcColor.B();
+            dstColor.set(clr, clr, clr, clr);
+            dstColor.save(&(dest._data[w + v]));
+        }
+    }
+
+    return RCode::Ok;
+}
+
+
+/*static*/
 RCode Png::convert(Png& dest, const Png& source, ColorFormat target) noexcept {
 
     if (source._format == ColorFormat::A8 && target == ColorFormat::R8G8B8A8) {
         return convert_A8_to_RGBA(dest, source);
+    }
+
+    if (source._format == ColorFormat::R8G8B8 && target == ColorFormat::A8) {
+        return convert_RGB_to_A8(dest, source);
     }
 
     ColorObject srcColor = ColorObject::FromFormat(source._format);
@@ -627,42 +668,121 @@ RCode Png::convert(Png& dest, const Png& source, ColorFormat target) noexcept {
 }
 
 
+AssetsManager::~AssetsManager() noexcept {
+
+    for (auto& p : _loaded) {
+        delete[] p.second.data;
+    }
+}
+
+
 RCode AssetsManager::Setup() noexcept {
 
-    char pathbuf[512];
-    char* res = getcwd(pathbuf, 512);
+    char pathbuf[cMaxPath];
+    char* res = getcwd(pathbuf, cMaxPath);
     if (!res) {
-        return CODE(IOError);
+        return RCode::IOError;
     }
+
+    _outpath = std::string(pathbuf) + std::string("/");
 
     static char sAssetsPath[] = "/../assets/";
 
     size_t l = std::strlen(pathbuf);
     if (l + lengthof(sAssetsPath) >= lengthof(pathbuf)) {
-        return CODE(LogicError);
+        return RCode::LogicError;
     }
 
     std::strcat(pathbuf, sAssetsPath);
 
     _folder = std::string(pathbuf);
 
-    return CODE(Ok);
+    return RCode::Ok;
 }
 
 
 RCode AssetsManager::Load(AssetData& output, const char* assetName) noexcept {
 
     if (_folder.size() == 0) {
-        return CODE(LogicError);
+        return RCode::LogicError;
     }
 
-    char pathbuf[512];
+    auto foundIt = _loaded.find(std::string(assetName));
+    if (foundIt != _loaded.end()) {
+        output = foundIt->second;
+        return RCode::Ok;
+    }
+
+    char pathbuf[cMaxPath];
     if (std::strlen(assetName) + _folder.size() >= lengthof(pathbuf)) {
-        return CODE(InvalidInput);
+        return RCode::InvalidInput;
     }
 
     std::strcpy(pathbuf, _folder.c_str());
     std::strcat(pathbuf, assetName);
 
+    try {
+        std::ifstream ifs(pathbuf);
+        if (!ifs.is_open()) {
+            return RCode::InvalidInput;
+        }
 
+        ifs.seekg(0, std::ios::end);
+        size_t length = ifs.tellg();
+        ifs.seekg(0, std::ios::beg);
+
+        output.data = new byte[length];
+        if (!output.data) {
+            return RCode::MemError;
+        }
+        output.size = length;
+
+        ifs.read((char*)output.data, length);
+    } catch (std::bad_alloc&) {
+        return RCode::MemError;
+    } catch (...) {
+        return RCode::InvalidInput;
+    }
+
+    try {
+        auto [it, res] = _loaded.insert(std::make_pair(std::string(assetName), output));
+        if (!res) {
+            delete[] output.data;
+            return RCode::LogicError;
+        }
+    } catch(...) {
+        delete[] output.data;
+        return RCode::MemError;
+    }
+
+    return RCode::Ok;
+}
+
+
+RCode AssetsManager::Save(const AssetData& input, const char* assetName) const noexcept {
+
+    if (_outpath.size() == 0) {
+        return RCode::LogicError;
+    }
+
+    char pathbuf[cMaxPath];
+    if (std::strlen(assetName) + _outpath.size() >= lengthof(pathbuf)) {
+        return RCode::InvalidInput;
+    }
+
+    std::strcpy(pathbuf, _outpath.c_str());
+    std::strcat(pathbuf, assetName);
+
+    try {
+        std::ofstream ofs(pathbuf);
+        if (!ofs.is_open()) {
+            return RCode::IOError;
+        }
+
+        ofs.write((const char*)input.data, input.size);
+    } catch (...) {
+        return RCode::IOError;
+    }
+
+    return RCode::Ok;
 }

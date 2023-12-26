@@ -1,2 +1,2 @@
-main.o: main.cu
-	nvcc -std=c++17 -I../inc main.cpp
+main.o: main.cpp
+	g++ main.cpp -std=c++17 -L/opt/local/lib -I../inc -lpng

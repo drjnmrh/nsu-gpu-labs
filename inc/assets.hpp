@@ -4,6 +4,7 @@
 #include <inttypes.h>
 
 #include <string>
+#include <unordered_map>
 
 #include <png.h>
 
@@ -18,14 +19,18 @@ struct AssetData {
 
 class AssetsManager {
 public:
+    static constexpr u32 cMaxPath = 512;
+
+   ~AssetsManager() noexcept;
 
     RCode Setup() noexcept;
 
     RCode Load(AssetData& output, const char* assetName) noexcept;
-    RCode Save(const AssetData& input, const char* assetName) noexcept;
+    RCode Save(const AssetData& input, const char* assetName) const noexcept;
 
 private:
-    std::string _folder;
+    std::string _folder, _outpath;
+    std::unordered_map<std::string, AssetData> _loaded;
 };
 
 
@@ -70,6 +75,7 @@ private:
     static void swap(Png& a, Png& b) noexcept;
 
     static RCode convert_A8_to_RGBA(Png& dest, const Png& source) noexcept;
+    static RCode convert_RGB_to_A8(Png& dest, const Png& source) noexcept;
     static RCode convert(Png& dest, const Png& source, ColorFormat target) noexcept;
 
     std::unique_ptr<byte[]> _data;
