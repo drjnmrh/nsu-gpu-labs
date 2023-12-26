@@ -1,55 +1,36 @@
 #ifndef __INC_GLOBAL_HPP__
 
 
+#include <assert.h>
+
 #include <atomic>
 #include <chrono>
+#include <iostream>
 #include <memory>
 #include <thread>
 
 
+#ifndef LAB_NUMBER
+#   define LAB_NUMBER 0
+#endif
+
+
 enum class RCode {
-    Ok = 0
-,   CUDA_Error = 1
-,   CUDA_Setup = 2
-,   TimeOut    = 3
-,   MemError   = 4
+    Ok           = 0
+,   CUDA_Error   = 1
+,   CUDA_Setup   = 2
+,   TimeOut      = 3
+,   MemError     = 4
+,   InvalidInput = 5
+,   LogicError   = 6
 };
 
 #define CODE(RCodeValue) static_cast<int>(RCode::RCodeValue)
 
 
 using byte = uint8_t;
+using u16 = uint16_t;
 using u32 = uint32_t;
-
-
-#define CALL_CUDA(Func, ...) \
-{ \
-    cudaError_t errorCode = Func(__VA_ARGS__); \
-    if (errorCode != cudaSuccess) { \
-        std::cerr << "FAILED: " << cudaGetErrorString(errorCode) << std::endl; \
-        return CODE(CUDA_Error); \
-    } \
-}
-
-
-static bool setup_cuda() {
-
-    int nbDevices;
-    CALL_CUDA(cudaGetDeviceCount, &nbDevices);
-
-    std::cout << "Number of CUDA devices: " << nbDevices << std::endl;
-
-    if (0 == nbDevices) {
-        std::cout << "No CUDA devices available!" << std::endl;
-        return false;
-    }
-
-    CALL_CUDA(cudaSetDevice, 0);
-
-    std::cout << "Successfully set device 0" << std::endl;
-
-    return true;
-}
 
 
 /**
@@ -70,30 +51,6 @@ public:
 
 private:
     clock_t::time_point _tpStart;
-};
-
-
-/**
- * @brief An utility structure used to manage allocated CUDA arrays.
- */
-template <typename T>
-struct cuda_array_raii_t {
-    T* arr;
-
-    cuda_array_raii_t() noexcept : arr(nullptr) {}
-    cuda_array_raii_t(T* a) noexcept : arr(a) {}
-   ~cuda_array_raii_t() noexcept {
-        if (arr != nullptr) {
-            cudaFree(arr);
-        }
-    }
-
-    void release(bool needFree = false) noexcept {
-        if (needFree && arr != nullptr) {
-            cudaFree(arr);
-        }
-        arr = nullptr;
-    }
 };
 
 

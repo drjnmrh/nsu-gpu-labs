@@ -9,7 +9,7 @@
 
 #include <png.h>
 
-#include "global.hpp"
+#include "cuda.hpp"
 
 // Too much hassle to setup Makefile for linkage with a separate static lib -
 // using unity build idea here.

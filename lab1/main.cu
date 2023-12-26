@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <iostream>
 
-#include "global.hpp"
+#include "cuda.hpp"
 
 
 #ifndef M_PI
@@ -19,7 +19,7 @@
 __global__ void compute_ ## SinFunc (int n, float* arr) { \
     unsigned int ix = blockIdx.x * blockDim.x + threadIdx.x; \
     if (ix < n) { \
-        arr[ix] = SinFunc((ix%360)*M_PI/180.0); \
+        arr[ix] = SinFunc((ix%360)*M_PI/180.0f); \
     } \
 }
 
@@ -63,7 +63,7 @@ static void compute_sin_on_cpu(WorkerData* dataPtr, unsigned int n, float* out) 
     }
 
     for (unsigned int i = ixStart; i < ixEnd; ++i) {
-        out[i] = sin((i%360)*M_PI/180.0f);
+        out[i] = sin((i%360)*M_PI/180.0);
     }
 
     if (!!dataPtr) {
