@@ -9,12 +9,12 @@
     cudaError_t errorCode = Func(__VA_ARGS__); \
     if (errorCode != cudaSuccess) { \
         std::cerr << "FAILED: " << cudaGetErrorString(errorCode) << std::endl; \
-        return CODE(CUDA_Error); \
+        return RC(CUDA_Error); \
     } \
 }
 
 
-static bool setup_cuda() {
+static RCode setup_cuda() {
 
     int nbDevices;
     CALL_CUDA(cudaGetDeviceCount, &nbDevices);
@@ -23,14 +23,14 @@ static bool setup_cuda() {
 
     if (0 == nbDevices) {
         std::cout << "No CUDA devices available!" << std::endl;
-        return false;
+        return RC(CUDA_Setup);
     }
 
     CALL_CUDA(cudaSetDevice, 0);
 
     std::cout << "Successfully set device 0" << std::endl;
 
-    return true;
+    return RC(Ok);
 }
 
 

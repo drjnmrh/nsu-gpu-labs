@@ -28,7 +28,7 @@ enum class RCode {
 };
 
 #define CODE(RCodeValue) static_cast<int>(RCode::RCodeValue)
-
+#define RC(Rc) RCode:: Rc
 
 using byte = uint8_t;
 using u16 = uint16_t;
